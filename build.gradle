@@ -1,0 +1,63 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.4.0'
+	id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'com.ns'
+version = '0.0.1'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	set('springShellVersion', "3.4.0")
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+
+	// Spring shell
+	implementation 'org.springframework.shell:spring-shell-starter'
+
+	// Lombok
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// Jwt
+	implementation 'io.jsonwebtoken:jjwt:0.9.1'
+
+	// Jetcd
+	implementation 'io.etcd:jetcd-core:0.8.5'
+
+	// JGit
+	implementation 'org.eclipse.jgit:org.eclipse.jgit:5.13.0.202109080827-r'
+
+	// Yaml
+	implementation 'org.yaml:snakeyaml:1.29'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.shell:spring-shell-dependencies:${springShellVersion}"
+	}
+}
+
+test {
+	useJUnitPlatform()
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
