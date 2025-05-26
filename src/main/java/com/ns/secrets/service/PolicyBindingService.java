@@ -1,51 +1,106 @@
 package com.ns.secrets.service;
 
-import com.ns.secrets.domain.PolicyBinding;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ns.secrets.repository.EtcdRepository;
+import com.ns.secrets.domain.PolicyBinding;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PolicyBindingService {
     private final EtcdRepository etcdRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public void bindPoliciesToGroup(String memberGroup, List<String> policyIds) {
+    public void bindPoliciesToMember(String memberId, PolicyBinding.MemberType memberType, List<String> policyIds) {
         PolicyBinding policyBinding = PolicyBinding.builder()
-                .memberGroup(memberGroup)
+                .memberId(memberId)
+                .memberType(memberType)
                 .attachedPolicies(policyIds)
                 .build();
 
-        String key = "/policy-bindings/" + memberGroup;
+        String key = buildKey(memberType, memberId);
         etcdRepository.put(key, serialize(policyBinding));
-        System.out.println("Policy binding created for group: " + memberGroup);
+        log.info("Binding Policy {}: {} → {}", memberType, memberId, policyIds);
     }
 
-    public void unbindPoliciesFromGroup(String memberGroup) {
-        String key = "/policy-bindings/" + memberGroup;
-        etcdRepository.put(key, "");
-        System.out.println("Policy binding removed for group: " + memberGroup);
+    public void unbindPoliciesFromMember(String memberId, PolicyBinding.MemberType memberType) {
+        String key = buildKey(memberType, memberId);
+        etcdRepository.delete(key);
+        log.info("UnBinding Policy {}: {}", memberType, memberId);
     }
 
-    public PolicyBinding getPolicyBindingForGroup(String memberGroup) {
-        String key = "/policy-bindings/" + memberGroup;
+    public PolicyBinding getPolicyBindingForMember(String memberId, PolicyBinding.MemberType memberType) {
+        String key = buildKey(memberType, memberId);
         String data = etcdRepository.get(key);
 
-        if (data != null) {
-            return deserialize(data);
-        } else {
+        if (data == null || data.isBlank()) {
+            log.warn("Not found {}: {}", memberType, memberId);
             return null;
+        }
+
+        PolicyBinding binding = deserialize(data);
+        log.info("getPolicyBindingForMember {}: {} → {}", memberType, memberId, binding.getAttachedPolicies());
+        return binding;
+    }
+
+    public void unbindPolicyFromAllMembers(String policyId) {
+        String prefix = "/policy-bindings/";
+        List<String> keys = etcdRepository.getAllKeys(prefix);
+
+        for (String key : keys) {
+            String data = etcdRepository.get(key);
+            if (data == null || data.isBlank()) continue;
+
+            PolicyBinding binding = deserialize(data);
+            if (binding.getAttachedPolicies() == null) continue;
+
+            List<String> updatedPolicies = binding.getAttachedPolicies().stream()
+                    .filter(pid -> !pid.equals(policyId))
+                    .collect(Collectors.toList());
+
+            if (updatedPolicies.size() == binding.getAttachedPolicies().size()) {
+                continue;
+            }
+
+            if (updatedPolicies.isEmpty()) {
+                etcdRepository.delete(key);
+                log.info("Empty policy binding {}: {}", binding.getMemberType(), binding.getMemberId());
+            } else {
+                PolicyBinding updated = PolicyBinding.builder()
+                        .memberId(binding.getMemberId())
+                        .memberType(binding.getMemberType())
+                        .attachedPolicies(updatedPolicies)
+                        .build();
+                etcdRepository.put(key, serialize(updated));
+                log.info("Unbound policy {}: {}", binding.getMemberType(), binding.getMemberId());
+            }
         }
     }
 
+    private String buildKey(PolicyBinding.MemberType memberType, String memberId) {
+        return "/policy-bindings/" + memberType.name().toLowerCase() + "/" + memberId;
+    }
+
     private String serialize(PolicyBinding policyBinding) {
-        return policyBinding.toString(); // todo JSON말고 그냥 집어넣음
+        try {
+            return objectMapper.writeValueAsString(policyBinding);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("serialize error ", e);
+        }
     }
 
     private PolicyBinding deserialize(String data) {
-        // todo 더미 데이터임
-        return new PolicyBinding("default", List.of("policy1", "policy2"));
+        try {
+            return objectMapper.readValue(data, PolicyBinding.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("deserialize error ", e);
+        }
     }
 }
