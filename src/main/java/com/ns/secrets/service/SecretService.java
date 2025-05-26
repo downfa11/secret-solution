@@ -14,48 +14,80 @@ public class SecretService {
 
     private final EtcdRepository etcd;
     private final AesEncryptor aes;
+    private final PermissionService permission;
 
-    public void saveEncrypted(String userId, String key, String plainText) {
-        String encrypted = aes.encrypt(plainText);
-        saveRaw(userId, key, encrypted);
+
+    public void saveRaw(String executorUserId, String namespace, String key, String value) {
+        saveRaw(executorUserId, namespace, key, value, false, 0L);
     }
 
-    public String getDecrypted(String userId, String key) {
-        String encrypted = etcd.get(path(userId, key));
+    public void saveRaw(String executorUserId, String namespace, String key, String value, boolean hasTTL, long ttlSeconds) {
+        checkPermission(executorUserId, "secret:write", resourcePath(namespace, key));
+
+        if (hasTTL) {
+            long leaseId = etcd.grantLease(ttlSeconds);
+            etcd.putWithLease(path(namespace, key), value, leaseId);
+        } else {
+            etcd.put(path(namespace, key), value);
+        }
+    }
+
+    public String getRaw(String executorUserId, String namespace, String key) {
+        checkPermission(executorUserId, "secret:read", resourcePath(namespace, key));
+        return etcd.get(path(namespace, key));
+    }
+
+    public void saveEncrypted(String executorUserId, String namespace, String key, String plainText) {
+        saveEncrypted(executorUserId, namespace, key, plainText, false, 0L);
+    }
+
+    public void saveEncrypted(String executorUserId, String namespace, String key, String plainText, boolean hasTTL, long ttlSeconds) {
+        checkPermission(executorUserId, "secret:encrypt", resourcePath(namespace, key));
+        String encrypted = aes.encrypt(plainText);
+        if (hasTTL) {
+            long leaseId = etcd.grantLease(ttlSeconds);
+            etcd.putWithLease(path(namespace, key), encrypted, leaseId);
+        } else {
+            etcd.put(path(namespace, key), encrypted);
+        }
+    }
+
+    public String getDecrypted(String executorUserId, String namespace, String key) {
+        checkPermission(executorUserId, "secret:decrypt", resourcePath(namespace, key));
+        String encrypted = etcd.get(path(namespace, key));
         if (encrypted == null) return null;
         return aes.decrypt(encrypted);
     }
 
-    public void saveRaw(String userId, String key, String value) {
-        etcd.put(path(userId, key), value);
+    public List<String> getAllSecrets(String executorUserId, String namespace) {
+        checkPermission(executorUserId, "secret:read", "/secrets/" + namespace + "/*");
+        return etcd.getAllKeys("/secrets/" + namespace + "/").stream()
+                .map(this::parseKeyAndDecrypt)
+                .collect(Collectors.toList());
     }
 
-    public String getRaw(String userId, String key) {
-        return etcd.get(path(userId, key));
+
+    // --- private methods ---
+    private void checkPermission(String userId, String action, String resource) {
+        if (!permission.isAllowed(userId, action, resource)) {
+            throw new SecurityException("Not allowed to " + action + " on resource " + resource);
+        }
+    }
+
+    private String parseKeyAndDecrypt(String fullKey) {
+        String[] parts = fullKey.split("/");
+        if (parts.length < 4) return "Invalid key in parseKeyAndDecrypt: " + fullKey;
+        String namespace = parts[2]; // /secrets/{namespace}/{key}
+        String key = parts[3];
+        String decrypted = aes.decrypt(etcd.get(fullKey));
+        return namespace + " - " + key + ": " + decrypted;
     }
 
     private String path(String userId, String key) {
         return "/secrets/" + userId + "/" + key;
     }
 
-
-    // TLL을 지정해서 etcd에 저장
-    public void saveWithTTL(String userId, String key, String plainText, long ttlSeconds) {
-        long leaseId = etcd.grantLease(ttlSeconds);
-        String encrypted = aes.encrypt(plainText);
-        etcd.putWithLease(path(userId, key), encrypted, leaseId);
-    }
-
-    // test 너무 답답해서 만듬
-    public List<String> getAllSecrets() {
-        List<String> allKeys = etcd.getAllKeys("/secrets/");
-        return allKeys.stream()
-                .map(key -> {
-                    String userId = key.split("/")[2];  // /secrets/{userId}/{key}
-                    String secretKey = key.split("/")[3];
-                    String decryptedSecret = getDecrypted(userId, secretKey);
-                    return userId + " - " + secretKey + ": " + decryptedSecret;
-                })
-                .collect(Collectors.toList());
+    private String resourcePath(String userId, String key) {
+        return "secret/" + userId + "/" + key;
     }
 }
