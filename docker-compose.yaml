@@ -27,6 +27,8 @@ services:
       - "8080:8080"
     networks:
       - secret-network
+    stdin_open: true
+    tty: true
 
 networks:
   secret-network:
