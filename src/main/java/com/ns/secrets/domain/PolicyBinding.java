@@ -13,6 +13,12 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PolicyBinding {
-    private String memberGroup;
+    private String memberId;
+    private MemberType memberType; // USER, GROUP
     private List<String> attachedPolicies;
+
+    public enum MemberType {
+        USER,
+        GROUP
+    }
 }
