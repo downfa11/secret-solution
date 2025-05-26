@@ -27,7 +27,7 @@ public class PolicyCommands {
                 .collect(Collectors.joining("\n"));
     }
 
-    @ShellMethod(key = "get-policy", value = "Get a policy by ID")
+    @ShellMethod(key = "get-policy", value = "Get a policy by policyId")
     public String getPolicyById(String id) {
         Optional<Policy> policyOpt = policyService.getPolicyById(id);
         if (policyOpt.isEmpty()) {
@@ -38,7 +38,7 @@ public class PolicyCommands {
     }
 
 
-    @ShellMethod(key = "bind-policies-to-member", value = "Bind policies to a user or group")
+    @ShellMethod(key = "bind-policies", value = "Bind policies to a user or group")
     public String bindPoliciesToMember(String memberId, String memberTypeStr, List<String> policyIds) {
         PolicyBinding.MemberType memberType;
         try {
@@ -51,7 +51,7 @@ public class PolicyCommands {
                 String.join(", ", policyIds), memberType.name().toLowerCase(), memberId);
     }
 
-    @ShellMethod(key = "unbind-policies-from-member", value = "Unbind policies from a user or group")
+    @ShellMethod(key = "unbind-policies", value = "Unbind policies from a user or group")
     public String unbindPoliciesFromMember(String memberId, String memberTypeStr) {
         PolicyBinding.MemberType memberType;
         try {
@@ -63,7 +63,7 @@ public class PolicyCommands {
         return String.format("Policies unbound from %s %s", memberType.name().toLowerCase(), memberId);
     }
 
-    @ShellMethod(key = "unbind-policy-from-all-members", value = "Unbind a policy from all members")
+    @ShellMethod(key = "unbind-policy-from-members", value = "Unbind a policy from all members")
     public String unbindPolicyFromAllMembers(String policyId) {
         try {
             policyBindingService.unbindPolicyFromAllMembers(policyId);
@@ -74,7 +74,7 @@ public class PolicyCommands {
     }
 
 
-    @ShellMethod(key = "get-policy-binding-for-member", value = "Get policy binding for a user or group")
+    @ShellMethod(key = "get-policy-binding", value = "Get policy binding for a user or group")
     public String getPolicyBindingForMember(String memberId, String memberTypeStr) {
         PolicyBinding.MemberType memberType;
         try {
