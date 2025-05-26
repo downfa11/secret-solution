@@ -1,65 +1,76 @@
 package com.ns.secrets.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.ns.secrets.domain.Policy;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.yaml.snakeyaml.Yaml;
 
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PolicyService {
 
-    @Value("${policies.location:}")
+    @Value("${git.repo.local-path}")
+    private String localRepoPath;
+
+    @Value("${policies.location:policies}")
     private String policiesLocation;
 
-    private final PolicyBindingService policyBindingService;
-    private final GitService gitService;
+    private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
 
-    public void syncPoliciesFromGit() {
-        try {
-            gitService.syncPolicyFile();
+    public Optional<Policy> getPolicyById(String id) {
+        Path policyPath = Paths.get(localRepoPath, policiesLocation, id + ".yaml");
+        if (!Files.exists(policyPath)) return Optional.empty();
 
-            Path policiesDir = Paths.get("/path/to/local/repo", policiesLocation);
-            try (Stream<Path> files = Files.list(policiesDir)) {
-                List<Path> yamlFiles = files.filter(path -> path.toString().endsWith(".yaml"))
-                        .collect(Collectors.toList());
-
-                for (Path file : yamlFiles) {
-                    try (InputStream in = Files.newInputStream(file)) {
-                        Yaml yaml = new Yaml();
-                        Policy policy = yaml.loadAs(in, Policy.class);
-                        applyPolicy(policy);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-
+        try (InputStream in = Files.newInputStream(policyPath)) {
+            Policy policy = yamlMapper.readValue(in, Policy.class);
+            return Optional.of(policy);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("getPolicyById error: {}", id, e);
+            return Optional.empty();
         }
     }
 
-    private void applyPolicy(Policy policy) {
-        System.out.println("Applying policy: " + policy);
 
-        List<String> userGroups = policy.getStatement().stream()
-                .flatMap(statement -> statement.getResources().stream())
-                .collect(Collectors.toList());
-
-        for (String group : userGroups) {
-            List<String> policies = List.of(policy.getId());
-            policyBindingService.bindPoliciesToGroup(group, policies);
-            System.out.println("Policy " + policy.getId() + " has been bound to group: " + group);
+    public List<Policy> getAllPolicies() {
+        try {
+            Path policiesDir = Paths.get(localRepoPath, policiesLocation);
+            try (Stream<Path> files = Files.list(policiesDir)) {
+                return files.filter(path -> path.toString().endsWith(".yaml"))
+                        .map(path -> {
+                            try (InputStream in = Files.newInputStream(path)) {
+                                return yamlMapper.readValue(in, Policy.class);
+                            } catch (Exception e) {
+                                log.error("File input error: {}", path, e);
+                                return null;
+                            }
+                        })
+                        .filter(p -> p != null)
+                        .collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("getAllPolicies error", e);
         }
+    }
+
+    public List<Policy> getPoliciesByIds(List<String> policyIds) {
+        return policyIds.stream()
+                .map(this::getPolicyById)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toList());
     }
 }
