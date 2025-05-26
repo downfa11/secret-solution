@@ -52,6 +52,9 @@ public class EtcdRepository {
                 .collect(Collectors.toList());
     }
 
+    public void delete(String key) {
+        client.getKVClient().delete(ByteSequence.from(key, UTF_8)).join();
+    }
 
 }
 
