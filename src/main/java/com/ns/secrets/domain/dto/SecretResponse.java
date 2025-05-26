@@ -1,4 +1,4 @@
-package com.ns.secrets.dto;
+package com.ns.secrets.domain.dto;
 
 import lombok.Builder;
 import lombok.Getter;
