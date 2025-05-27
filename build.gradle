@@ -1,68 +1,12 @@
-plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.4.0'
-	id 'io.spring.dependency-management' version '1.1.6'
-	id 'com.palantir.docker' version '0.35.0'
-}
-
-group = 'com.ns'
-version = '0.0.1'
-
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
+allprojects {
+	group = "com.ns.secrets"
+	version = "0.0.1"
 }
 
 repositories {
 	mavenCentral()
 }
 
-ext {
-	set('springShellVersion', "3.4.0")
-}
-
 dependencies {
-	// Spring Shell
-	implementation 'org.springframework.shell:spring-shell-starter'
 
-	testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
-	testImplementation 'org.mockito:mockito-junit-jupiter:5.5.0'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-	// Lombok
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
-
-	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.2' // YAML
-
-	implementation 'io.etcd:jetcd-core:0.8.5'	// Jetcd
-	implementation 'org.eclipse.jgit:org.eclipse.jgit:5.13.0.202109080827-r' // JGit
-}
-
-dependencyManagement {
-	imports {
-		mavenBom "org.springframework.shell:spring-shell-dependencies:${springShellVersion}"
-	}
-}
-
-test {
-	useJUnitPlatform()
-}
-
-tasks.named('test') {
-	useJUnitPlatform()
-}
-
-tasks.named('bootBuildImage') {
-	builder = 'paketobuildpacks/builder-jammy-base:latest'
-}
-
-docker {
-	println(tasks.bootJar.outputs.files)
-	name "downfa11/"+project.name+":latest"
-	dockerfile file('./Dockerfile')
-	files tasks.bootJar.outputs.files
-	files file('./config')
-	buildArgs(['JAR_FILE':tasks.bootJar.outputs.files.singleFile.name])
 }

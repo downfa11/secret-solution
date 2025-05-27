@@ -12,9 +12,8 @@ services:
     networks:
       - secret-network
 
- # docker build -t downfa11/secrets:latest --build-arg JAR_FILE=build/libs/secrets-0.0.1.jar .
-  secrets:
-    image: downfa11/secrets:latest
+  secrets-server:
+    image: downfa11/secrets-server:latest
     depends_on:
       - etcd
     environment:
@@ -23,8 +22,20 @@ services:
       # POLICIES_LOCATION 명시안하면 root dir
     volumes:
       - ./logs:/logs
+      - ./certs:/certs
     ports:
       - "8080:8080"
+    networks:
+      - secret-network
+
+  secrets-command:
+    image: downfa11/secrets-command:latest
+    environment:
+      - SERVER_URL=http://secrets-server:8080
+    volumes:
+      - ./certs:/certs
+    ports:
+      - "8081:8080"
     networks:
       - secret-network
     stdin_open: true

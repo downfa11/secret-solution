@@ -1,1 +1,3 @@
-rootProject.name = 'secrets'
+rootProject.name = 'secret-solution'
+
+include ('server', 'command')
