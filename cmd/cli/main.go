@@ -13,27 +13,65 @@ import (
 	"secret-solution/internal/policy"
 	"secret-solution/internal/policyBinding"
 	"secret-solution/internal/secret"
+	"secret-solution/internal/token"
 	"secret-solution/internal/user"
 
 	"github.com/spf13/cobra"
 )
 
 func main() {
-	cfg, _ := config.NewConfig()
-	etcdRepo, _ := etcd.NewEtcdRepository(cfg.Etcd.Endpoints, time.Duration(cfg.Etcd.RequestTimeoutSeconds)*time.Second)
-	aesEncryptor, _ := secret.NewAesEncryptor(cfg.Crypto.AesKey)
-	gitService, _ := git.NewGitService(cfg.Git.RepoURL, cfg.Git.LocalRepoPath)
-	userService, _ := user.NewUserService(cfg)
-	policyService, _ := policy.NewPolicyService(cfg)
+	// Config
+	cfg, err := config.NewConfig()
+	if err != nil {
+		log.Fatalf("config init failed: %v", err)
+	}
+
+	// Etcd
+	etcdRepo, err := etcd.NewEtcdRepository(cfg.Etcd.Endpoints, time.Duration(cfg.Etcd.RequestTimeoutSeconds)*time.Second)
+	if err != nil {
+		log.Fatalf("etcd init failed: %v", err)
+	}
+
+	// Secret AES
+	aesEncryptor, err := secret.NewAesEncryptor(cfg.Crypto.AesKey)
+	if err != nil {
+		log.Fatalf("AES init failed: %v", err)
+	}
+
+	// Git
+	gitService, err := git.NewGitService(cfg.Git.RepoURL, cfg.Git.LocalRepoPath)
+	if err != nil {
+		log.Fatalf("git init failed: %v", err)
+	}
+
+	// JWT + User
+	jwtService := token.NewJWTService(cfg.Crypto.AesKey)
+	userService, err := user.NewUserService(cfg, etcdRepo, jwtService)
+	if err != nil {
+		log.Fatalf("user service init failed: %v", err)
+	}
+
+	if err := userService.SyncAndStoreTokens(); err != nil {
+		log.Fatalf("사용자 토큰 동기화 및 저장 실패: %v", err)
+	}
+
+	// Policy
+	policyService, err := policy.NewPolicyService(cfg)
+	if err != nil {
+		log.Fatalf("PolicyService init failed: %v", err)
+	}
+
 	policyBindingService := policyBinding.NewPolicyBindingService(etcdRepo)
 	permissionService := permission.NewPermissionService(policyService, policyBindingService, userService)
 	secretService := secret.NewSecretService(etcdRepo, aesEncryptor, permissionService)
 
+	// Root CLI
 	rootCmd := &cobra.Command{
 		Use:   "secret-solution",
 		Short: "CLI for secret-solution",
 	}
 
+	// Add commands
 	rootCmd.AddCommand(NewSecretCmd(secretService))
 	rootCmd.AddCommand(NewGitCmd(gitService))
 	rootCmd.AddCommand(NewPolicyCmd(policyService))
@@ -205,7 +243,13 @@ func NewPolicyCmd(svc *policy.PolicyService) *cobra.Command {
 		Short: "Get policy by ID",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			p, _ := svc.GetPolicyByID(args[0])
+			if svc == nil {
+				log.Fatal("PolicyService가 초기화되지 않았습니다")
+			}
+			p, err := svc.GetPolicyByID(args[0])
+			if err != nil {
+				log.Fatalf("Policy get failed: %v", err)
+			}
 			log.Println("Policy:", p)
 		},
 	})
@@ -215,7 +259,13 @@ func NewPolicyCmd(svc *policy.PolicyService) *cobra.Command {
 		Short: "Get all policies",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			policies, _ := svc.GetAllPolicies()
+			if svc == nil {
+				log.Fatal("PolicyService가 초기화되지 않았습니다")
+			}
+			policies, err := svc.GetAllPolicies()
+			if err != nil {
+				log.Fatalf("Policy get-all failed: %v", err)
+			}
 			log.Println("Policies:", policies)
 		},
 	})
@@ -234,7 +284,10 @@ func NewUserCmd(svc *user.UserService) *cobra.Command {
 		Short: "Get user's group",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			group, _ := svc.GetUserGroup(args[0])
+			group, err := svc.GetUserGroup(args[0])
+			if err != nil {
+				log.Fatalf("GetUserGroup failed: %v", err)
+			}
 			log.Println("Group:", group)
 		},
 	})
@@ -278,7 +331,10 @@ func NewPolicyBindingCmd(svc *policyBinding.PolicyBindingService) *cobra.Command
 		Short: "Get policy bindings for member",
 		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
-			binding, _ := svc.GetPolicyBindingForMember(args[0], policyBinding.MemberType(args[1]))
+			binding, err := svc.GetPolicyBindingForMember(args[0], policyBinding.MemberType(args[1]))
+			if err != nil {
+				log.Fatalf("GetPolicyBinding failed: %v", err)
+			}
 			log.Println("Binding:", binding)
 		},
 	})
