@@ -6,18 +6,23 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-s -w" -o /go-secrets-api ./cmd/api
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-s -w" -o /go-secrets-cli ./cmd/cli
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-s -w" -o /app/go-secrets-api ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-s -w" -o /app/go-secrets-cli ./cmd/cli
 
-# Stage 2: Create the final production image
+# Stage 2: Production image
 FROM alpine:3.18
 
 WORKDIR /root/
-COPY --from=builder /go-secrets-api .
-COPY --from=builder /go-secrets-cli .
+COPY --from=builder /app/go-secrets-api .
+COPY --from=builder /app/go-secrets-cli .
+
+RUN apk add --no-cache bash curl
 
 EXPOSE 8080
 EXPOSE 50051
 
-ENTRYPOINT ["./go-secrets-api"]
-CMD ["api"]
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
+ENTRYPOINT ["/root/entrypoint.sh"]
+CMD []

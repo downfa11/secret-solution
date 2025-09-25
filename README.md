@@ -5,10 +5,23 @@
 
 ### Quick Start
 
+컨테이너 실행
+
 ```
+docker run -it -p 8080:8080 my-secrets-image
 docker-compose up -d --build
-docker exec -it secrets-app ./go-secrets-cli
 ```
+
+내부에서 CLI 사용
+```
+docker exec -it secrets-app /root/go-secrets-cli secret get user1 default key1
+```
+
+외부 클라이언트에서 HTTP 요청
+```
+curl http://localhost:8080/secrets/user1/namespace/key
+```
+
 
 ### Test
 
