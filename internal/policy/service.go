@@ -18,7 +18,6 @@ type Statement struct {
 	Resources []string `yaml:"resources"`
 }
 
-// Policy represents a single policy loaded from a YAML file.
 type Policy struct {
 	ID         string      `yaml:"id"`
 	Version    string      `yaml:"version"`
@@ -34,13 +33,7 @@ type PolicyService struct {
 }
 
 func NewPolicyService(cfg *config.AppConfig) (*PolicyService, error) {
-	policiesLocation := "policies"
-	if cfg.Policies.Location != "" {
-		policiesLocation = cfg.Policies.Location
-	}
-
-	policiesDir := filepath.Join(cfg.Git.LocalRepoPath, policiesLocation)
-
+	policiesDir := filepath.Join(cfg.Git.LocalRepoPath, "policies")
 	if _, err := os.Stat(policiesDir); os.IsNotExist(err) {
 		return nil, fmt.Errorf("policies directory not found: %s", policiesDir)
 	}
