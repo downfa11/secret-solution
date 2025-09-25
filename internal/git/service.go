@@ -13,7 +13,6 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
 type GitService struct {
@@ -34,7 +33,6 @@ func NewGitService(repoURL, localRepoPath string) (*GitService, error) {
 			_, err := git.PlainClone(repoDir, false, &git.CloneOptions{
 				URL:      repoURL,
 				Progress: os.Stdout,
-				Auth:     &http.BasicAuth{},
 			})
 			if err != nil {
 				log.Printf("Failed to clone repository. Retrying... (attempt %d/%d)", i+1, retries)
@@ -84,7 +82,6 @@ func (s *GitService) Sync() ([]string, error) {
 		return nil, fmt.Errorf("failed to get worktree: %w", err)
 	}
 	err = wt.Pull(&git.PullOptions{
-		Auth:     &http.BasicAuth{},
 		Progress: os.Stdout,
 	})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
@@ -221,7 +218,6 @@ func (s *GitService) CommitAndPush(message string) error {
 	}
 
 	err = s.repo.Push(&git.PushOptions{
-		Auth:     &http.BasicAuth{},
 		Progress: os.Stdout,
 	})
 	if err != nil {

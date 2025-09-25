@@ -2,6 +2,8 @@
 외부 비밀 저장소
 
 - CLI, HTTP 지원 | grpc 통신 구현중
+- 현재 manifest Gitops는 public repo만 가능
+- push 권한 없으면 forbidden
 
 ### Quick Start
 
