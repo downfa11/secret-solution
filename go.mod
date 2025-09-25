@@ -5,9 +5,9 @@ go 1.25.0
 require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/go-git/go-git/v5 v5.16.2
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/spf13/cobra v1.10.1
 	go.etcd.io/etcd/client/v3 v3.6.4
-	google.golang.org/grpc v1.71.1
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -64,6 +64,7 @@ require (
 	golang.org/x/text v0.24.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb // indirect
+	google.golang.org/grpc v1.71.1 // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
