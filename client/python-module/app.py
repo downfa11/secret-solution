@@ -3,7 +3,8 @@ from secret_client import SecretClient
 
 app = Flask(__name__)
 
-client = SecretClient("http://localhost:8080", token="dummy-token")
+client = SecretClient("http://localhost:8080", token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYWxpY2UiLCJleHAiOjE3NTg5MDExODZ9.t1rn6cYUeMANPbIEfnCIhH-qIqXD5beEkrYIBrDR3VY"
+                         )
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
