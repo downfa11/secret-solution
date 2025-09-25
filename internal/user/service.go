@@ -3,9 +3,12 @@ package user
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"secret-solution/internal/config"
+	"secret-solution/internal/etcd"
+	"secret-solution/internal/token"
 	"strings"
 
 	"gopkg.in/yaml.v2"
@@ -24,9 +27,11 @@ type UserGroup struct {
 type UserService struct {
 	usersDir     string
 	userGroupDir string
+	etcdRepo     etcd.EtcdRepository
+	jwtService   *token.JWTService
 }
 
-func NewUserService(cfg *config.AppConfig) (*UserService, error) {
+func NewUserService(cfg *config.AppConfig, etcdRepo etcd.EtcdRepository, jwtService *token.JWTService) (*UserService, error) {
 	repoPath := cfg.Git.LocalRepoPath
 	usersDir := filepath.Join(repoPath, "users")
 	userGroupDir := filepath.Join(repoPath, "user-groups")
@@ -41,6 +46,8 @@ func NewUserService(cfg *config.AppConfig) (*UserService, error) {
 	return &UserService{
 		usersDir:     usersDir,
 		userGroupDir: userGroupDir,
+		etcdRepo:     etcdRepo,
+		jwtService:   jwtService,
 	}, nil
 }
 
@@ -70,6 +77,29 @@ func (s *UserService) loadUsers() (map[string]User, error) {
 		}
 	}
 	return users, nil
+}
+
+func (s *UserService) SyncAndStoreTokens() error {
+	users, err := s.loadUsers()
+	if err != nil {
+		return fmt.Errorf("사용자 정보 로드 실패: %w", err)
+	}
+
+	for userID := range users {
+		token, err := s.jwtService.GenerateToken(userID)
+		if err != nil {
+			log.Printf("사용자 %s에 대한 토큰 생성 실패: %v", userID, err)
+			continue
+		}
+
+		etcdKey := fmt.Sprintf("/secrets-app/tokens/%s", userID)
+		if err := s.etcdRepo.Put(etcdKey, token); err != nil {
+			log.Printf("사용자 %s의 토큰을 Etcd에 저장 실패: %v", userID, err)
+			continue
+		}
+		log.Printf("사용자 '%s'의 토큰이 성공적으로 생성되어 Etcd에 저장되었습니다: %v", userID, token)
+	}
+	return nil
 }
 
 func (s *UserService) GetUser(id string) (*User, error) {
