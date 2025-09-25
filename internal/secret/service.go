@@ -23,8 +23,8 @@ func NewSecretService(etcdRepo etcd.EtcdRepository, encryptor AesEncryptor, perm
 }
 
 func (s *SecretService) SaveRaw(executorUserID, namespace, key, value string, hasTTL bool, ttlSeconds int64) error {
-	resource := s.resourcePath(namespace, key)
-	if !s.permService.CheckPermission(executorUserID, "secret:write", resource) {
+	resource := s.ResourcePath(namespace, key)
+	if !s.permService.CheckPermission(executorUserID, []string{"secret:write"}, resource) {
 		return fmt.Errorf("security error: user %s not allowed to write on %s", executorUserID, resource)
 	}
 
@@ -40,8 +40,8 @@ func (s *SecretService) SaveRaw(executorUserID, namespace, key, value string, ha
 }
 
 func (s *SecretService) SaveEncrypted(executorUserID, namespace, key, plainText string, hasTTL bool, ttlSeconds int64) error {
-	resource := s.resourcePath(namespace, key)
-	if !s.permService.CheckPermission(executorUserID, "secret:encrypt", resource) {
+	resource := s.ResourcePath(namespace, key)
+	if !s.permService.CheckPermission(executorUserID, []string{"secret:encrypt"}, resource) {
 		return fmt.Errorf("security error: user %s not allowed to encrypt on %s", executorUserID, resource)
 	}
 
@@ -62,16 +62,16 @@ func (s *SecretService) SaveEncrypted(executorUserID, namespace, key, plainText 
 }
 
 func (s *SecretService) GetRaw(executorUserID, namespace, key string) (string, error) {
-	resource := s.resourcePath(namespace, key)
-	if !s.permService.CheckPermission(executorUserID, "secret:read", resource) {
+	resource := s.ResourcePath(namespace, key)
+	if !s.permService.CheckPermission(executorUserID, []string{"secret:read"}, resource) {
 		return "", fmt.Errorf("security error: user %s not allowed to read on %s", executorUserID, resource)
 	}
 	return s.etcdRepo.Get(s.path(namespace, key))
 }
 
 func (s *SecretService) GetDecrypted(executorUserID, namespace, key string) (string, error) {
-	resource := s.resourcePath(namespace, key)
-	if !s.permService.CheckPermission(executorUserID, "secret:decrypt", resource) {
+	resource := s.ResourcePath(namespace, key)
+	if !s.permService.CheckPermission(executorUserID, []string{"secret:decrypt"}, resource) {
 		return "", fmt.Errorf("security error: user %s not allowed to decrypt on %s", executorUserID, resource)
 	}
 
@@ -87,7 +87,7 @@ func (s *SecretService) GetDecrypted(executorUserID, namespace, key string) (str
 
 func (s *SecretService) GetAllSecrets(executorUserID, namespace string) ([]string, error) {
 	resource := fmt.Sprintf("/secrets/%s/*", namespace)
-	if !s.permService.CheckPermission(executorUserID, "secret:read", resource) {
+	if !s.permService.CheckPermission(executorUserID, []string{"secret:read"}, resource) {
 		return nil, fmt.Errorf("security error: user %s not allowed to read all secrets in %s", executorUserID, namespace)
 	}
 
@@ -113,7 +113,7 @@ func (s *SecretService) path(namespace, key string) string {
 	return fmt.Sprintf("/secrets/%s/%s", namespace, key)
 }
 
-func (s *SecretService) resourcePath(namespace, key string) string {
+func (s *SecretService) ResourcePath(namespace, key string) string {
 	return fmt.Sprintf("secret/%s/%s", namespace, key)
 }
 

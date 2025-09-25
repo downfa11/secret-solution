@@ -22,7 +22,7 @@ func NewPermissionService(policyService *policy.PolicyService, policyBindingServ
 	}
 }
 
-func (s *PermissionService) CheckPermission(userID, action, resource string) bool {
+func (s *PermissionService) CheckPermission(userID string, actions []string, resource string) bool {
 	userBinding, err := s.policyBindingService.GetPolicyBindingForMember(userID, policyBinding.MemberTypeUser)
 	if err != nil {
 		log.Printf("Error getting user policy binding for %s: %v", userID, err)
@@ -63,33 +63,43 @@ func (s *PermissionService) CheckPermission(userID, action, resource string) boo
 		policies = append(policies, groupPolicies...)
 	}
 
-	for _, p := range policies {
-		for _, stmt := range p.Statement {
-			if strings.EqualFold(stmt.Effect, "allow") {
-				actionMatch := false
-				for _, a := range stmt.Actions {
-					if a == action {
-						actionMatch = true
+	for _, action := range actions {
+		allowed := false
+		for _, p := range policies {
+			for _, stmt := range p.Statement {
+				if strings.EqualFold(stmt.Effect, "allow") {
+					actionMatch := false
+					for _, a := range stmt.Actions {
+						if a == action {
+							actionMatch = true
+							break
+						}
+					}
+					resourceMatch := false
+					for _, r := range stmt.Resources {
+						if match(resource, r) {
+							resourceMatch = true
+							break
+						}
+					}
+					if actionMatch && resourceMatch {
+						allowed = true
 						break
 					}
-				}
-				resourceMatch := false
-				for _, r := range stmt.Resources {
-					if match(resource, r) {
-						resourceMatch = true
-						break
-					}
-				}
-				if actionMatch && resourceMatch {
-					log.Printf("Permission granted for user %s on resource %s with action %s (policy: %s)", userID, resource, action, p.ID)
-					return true
 				}
 			}
+			if allowed {
+				break
+			}
+		}
+		if !allowed {
+			log.Printf("Permission denied for user %s on resource %s, missing action %s", userID, resource, action)
+			return false
 		}
 	}
 
-	log.Printf("Permission denied for user %s on resource %s with action %s", userID, resource, action)
-	return false
+	log.Printf("Permission granted for user %s on resource %s for actions %v", userID, resource, actions)
+	return true
 }
 
 func match(actual, pattern string) bool {
