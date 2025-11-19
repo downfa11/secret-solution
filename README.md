@@ -35,6 +35,9 @@ go test ./...
 # alice 사용자에게 권한을 주기 위해선 devs 그룹에게 할당하면 편하다.
 ./go-secrets-cli policy-binding bind devs group policy_team_a_read,policy_team_a_write
 
+# alice 사용자에게 권한을 개별로 할당
+./go-secrets-cli policy-binding bind alice user policy_team_a_read,policy_team_a_write
+
 # devs 그룹의 권한이 잘 바인딩되었는지 확인
 ./go-secrets-cli policy-binding get devs group
 
