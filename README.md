@@ -1,9 +1,34 @@
 # secret-solution
 외부 비밀 저장소
 
+컨테이너 오케스트레이션 환경에서 민감한 정보를 관리하는 보안적 요소가 미비하다.
+
+이에 표준으로 자리잡은 Kubernetes는 Secret 리소스에 AWS KMS나 HashCorp Vault를 함께 사용하길 권장하고 있다.
+
+하지만 비용이 들거나 사용하기 어렵다는 단점이 있기 때문에 본 프로젝트에서는 이를 경량화하고 GitOps 기반 RBAC를 도입했다.
+
 - CLI, HTTP 지원 | grpc 통신 구현중
 - 현재 manifest Gitops는 public repo만 가능
 - push 권한 없으면 forbidden
+
+## Architecture
+
+![diagram](docs/sequencial-diagram.png)
+
+더욱 경량화된 성격에 맞게 Java Spring에서 Go 기반으로 마이그레이션 진행
+
+
+## GitOps 기반 사용자 권한 관리(RBAC)
+
+![git-repo](docs/git-repo.png)
+
+Group-Member 단위로 어떤 디렉토리에 접근할지, 접근해서 어떤 작업이 가능한지 세부적으로 manifest 관리합니다.
+
+- [policy repo](https://github.com/downfa11/secret-policy)에서 공개하고 있지만, Private repository를 권장
+
+본 프로젝트에서는 `sync()` 과정을 통해서 주기적 혹은 명령어를 통해 명시적으로 동기화합니다.
+
+일부 작업에 대해서는 자동 동기화를 이용하지만, ArgoCD처럼 캐싱 레이어 도입을 검토중
 
 ## Quick Start
 
@@ -48,6 +73,7 @@ go test ./...
 
 ## usage
 
+```
 secret-solution cli
 ├─ secret
 │  ├─ get [user_id] [namespace] [key]
@@ -71,7 +97,7 @@ secret-solution cli
    ├─ unbind [member_id] [member_type]
    ├─ unbind-all [policy_id]
    └─ get [member_id] [member_type]
-
+```
 
 Policy actions list:
 - secret:read
