@@ -1,35 +1,33 @@
-version: '3'
+version: '3.4'
+
 services:
   etcd:
-    image: quay.io/coreos/etcd:v3.5.12
+    image: bitnami/etcd:latest
     container_name: etcd
-    environment:
-      - ALLOW_NONE_AUTHENTICATION=yes
-      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
-      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
     ports:
       - "2379:2379"
-    networks:
-      - secret-network
+      - "2380:2380"
+    environment:
+      - ETCD_NAME=etcd
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
+      - ETCD_INITIAL_CLUSTER=etcd=http://etcd:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
 
- # docker build -t downfa11/secrets:latest --build-arg JAR_FILE=build/libs/secrets-0.0.1.jar .
-  secrets:
-    image: downfa11/secrets:latest
+  secrets-app:
+    image: secrets-app:latest
+    container_name: secrets-app
     depends_on:
       - etcd
     environment:
-      - GIT_REPO_URL=https://github.com/downfa11/secret-policy
-      - ETCD_URL=http://etcd:2379
-      # POLICIES_LOCATION 명시안하면 root dir
-    volumes:
-      - ./logs:/logs
+      - ETCD_URLS=etcd:2379
+      - GIT_REPO_URL=https://github.com/downfa11/secret-policy.git
+      - AES_KEY=your-secret-aes-256-key-32bytes-
+      - APP_HTTP_PORT=8080
     ports:
       - "8080:8080"
-    networks:
-      - secret-network
-    stdin_open: true
-    tty: true
-
-networks:
-  secret-network:
-    driver: bridge
+      - "50051:50051"
